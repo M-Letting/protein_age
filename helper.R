@@ -18,7 +18,8 @@ create_EB_df <- function(df){
         Gene = gene,
         AgeBin = age_bin,
         MeanAge = mean(as.numeric(unlist(regmatches(age_bin, 
-                                                    gregexpr("[0-9]+", age_bin))))),
+                                                    gregexpr("[0-9]+", 
+                                                             age_bin))))),
         Median = median(df[df$AgeBin == age_bin, gene],
                         na.rm = TRUE),
         SD = sd(df[df$AgeBin == age_bin, gene],
@@ -139,3 +140,15 @@ create_incremental_plot <- function(tmt_df,
   }
 }
 
+# Create a geom hex plot for a single gene
+# Input: TMT dataframe, gene
+create_hex_plot <- function(tmt_df, 
+                            gene, 
+                            n_bins = 30) {
+  p <- ggplot(tmt_df, aes(x = Age, y = .data[[gene]])) + 
+    geom_hex(bins = n_bins) +
+    scale_fill_viridis_c() +
+    labs(x = "Age", y = "Log Ratio")
+  
+  return(p)
+}

@@ -46,22 +46,36 @@ ui <- fluidPage(
       textInput("GOI", "Enter Genes of Interest (GOI) as a comma-separated list",
                 placeholder = "Enter GOI here..."),
       radioButtons("binned", "Select Plot Type", 
-                   choices = c("Binned plot", "Rolling plot")),
+                   choices = c("Binned plot", "Rolling plot", "Hex plot")),
       
       # Conditional options for Binned plot
       conditionalPanel(
         condition = "input.binned == 'Binned plot'",
         checkboxGroupInput("bin_plot_include", 
                            "What should be included in the plot?",
-                           choices = c("Scatter", "Line", "Error Bars", "Point")),
+                           choices = c("Scatter", "Line", "Error Bars", "Point")
+                           )
       ),
+      conditionalPanel( # Slider for alpha value if scatter plot is selected
+        condition = "input.binned == 'Binned plot' && input.bin_plot_include.includes('Scatter')",
+        sliderInput("alpha", "Select alpha value for scatter plot", 
+                    min = 0, max = 1, value = 0.5)
+      ),
+      # Conditional options for Rolling plot
       conditionalPanel(
         condition = "input.binned == 'Rolling plot'",
         numericInput("window_size", 
                      "Enter window size for rolling plot", 
                      value = 5)
       ),
-      actionButton("update_btn", "Update Table"),
+      # Conditional options for Hex plot
+      conditionalPanel(
+        condition = "input.binned == 'Hex plot'",
+        numericInput("n_bins", 
+                     "Enter number of bins for hex plot", 
+                     value = 10)
+      ),
+      actionButton("update_btn", "Update Plot", icon = icon("refresh")),
     ),
     mainPanel(
       plotOutput("plot")
@@ -69,41 +83,75 @@ ui <- fluidPage(
   )
 )
 
-
-# Define server logic
+#### Define server ####
 server <- function(input, output) {
   # Reactive expression triggered only when button is clicked
   filtered_plot <- eventReactive(input$update_btn, {
     req(input$dataset)  # Ensure a dataset is selected
     dataset <- get(input$dataset, envir = .GlobalEnv)  # Fetch dataset
     
-    # Process Genes of Interest
+    # Process Genes of Interest (GOI)
     GOI <- trimws(unlist(strsplit(input$GOI, ",")))  # Split by comma
     
-    # Filter dataset for selected genes and last 2 columns
-    dataset_filtered <- dataset[, which(colnames(dataset) %in% GOI)]
+    # Safe column selection (prevents index errors)
+    selected_columns <- intersect(colnames(dataset), c(GOI, "Age", "AgeBin"))
+    dataset_filtered <- dataset[, selected_columns, drop = FALSE]  
     
-    dataset_filtered$Age <- dataset$Age
-    dataset_filtered$AgeBin <- dataset$AgeBin
+    # Ensure valid plot selection
+    if (!(input$binned %in% c("Rolling plot", "Binned plot", "Hex plot"))) {
+      return(NULL)
+    }
     
-    # Create desired plot using helper functions based on user input
-    p1 <- if (input$binned == "Rolling plot") {
-      create_incremental_plot(dataset, input$window_size,
-                              genes = GOI,
-                              create_plot = TRUE)
+    # Create the plot based on user selection
+    if (input$binned == "Rolling plot") {
+      p1 <- create_incremental_plot(dataset, 
+                                    input$window_size, 
+                                    genes = GOI, 
+                                    create_plot = TRUE)
+      
+    } else if (input$binned == "Binned plot") {
+
+      EB_df_input <- create_EB_df(dataset_filtered)
+      
+      # Check for plot elements
+      EB <- "Error Bars" %in% input$bin_plot_include
+      line <- "Line" %in% input$bin_plot_include
+      scatter <- "Scatter" %in% input$bin_plot_include
+      point <- "Point" %in% input$bin_plot_include
+      
+      p1 <- create_age_EB_plot(
+        tmt_df = dataset, 
+        genes = GOI, 
+        scatter = scatter, 
+        point = point, 
+        line = line, 
+        EB = EB,
+        EB_df = EB_df_input, 
+        alfa = input$alpha
+      )
+    } else if (input$binned == "Hex plot") {
+      # If no comma is present, treat as single gene
+      if (length(GOI) == 1) {
+        p1 <- create_hex_plot(tmt_df = dataset, 
+                              gene = GOI,
+                              n_bins = input$n_bins)
+      } else {
+        return(NULL)  # Avoid plotting if multiple genes are selected
+      }
     } else {
-      plot_rolling(dataset, input$window_size)
+      return(NULL)  # Fallback if needed
     }
     
     return(p1)
   })
   
-  # Render the plot of the filtered dataset
+  # Render the plot
   output$plot <- renderPlot({
     req(filtered_plot())  # Ensure reactive plot exists
-    filtered_plot()  # Call the reactive expression to return plot
+    filtered_plot()
   })
 }
+
 
 # Run the application 
 shinyApp(ui = ui, server = server)
