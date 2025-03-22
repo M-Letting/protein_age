@@ -7,6 +7,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(RColorBrewer)
+library(hexbin)
 
 # Create a dataframe with sd, median, mean age for each gene for each age bin
 # Input: Dataframe with gene expression data, age bins
