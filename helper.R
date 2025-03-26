@@ -97,7 +97,8 @@ create_incremental_plot <- function(tmt_df,
                                     genes, 
                                     h = 2,
                                     return_df = FALSE,
-                                    create_plot = TRUE) {
+                                    create_plot = TRUE,
+                                    method = "mean") {
   # Error handling
   if (return_df == TRUE & create_plot == TRUE) {
     stop("You can only return a dataframe or create a plot, not both")
@@ -116,11 +117,28 @@ create_incremental_plot <- function(tmt_df,
     res_df$Age[i - h] <- mean(tmt_df$Age[(i - h):(i + h)])
   }
   
-  for (gene in genes) {
-    for (i in (1 + h):(nrow(tmt_df) - h)){
-      res_df[i - h, gene] <- mean(tmt_df[[gene]][(i - h):(i + h)])
+  if (method == "Mean") {
+    for (gene in genes) {
+      for (i in (1 + h):(nrow(tmt_df) - h)){
+        res_df[i - h, gene] <- mean(tmt_df[[gene]][(i - h):(i + h)])
+      }
+    }
+  } else if (method == "Median") {
+    for (gene in genes) {
+      for (i in (1 + h):(nrow(tmt_df) - h)){
+        res_df[i - h, gene] <- median(tmt_df[[gene]][(i - h):(i + h)],
+                                      na.rm = TRUE)
+      }
+    }
+  } else if (method == "Sum"){
+    for (gene in genes) {
+      for (i in (1 + h):(nrow(tmt_df) - h)){
+        res_df[i - h, gene] <- sum(tmt_df[[gene]][(i - h):(i + h)],
+                                   na.rm = TRUE)
+      }
     }
   }
+
   
   if (return_df == TRUE) {
     return(res_df)
@@ -153,3 +171,4 @@ create_hex_plot <- function(tmt_df,
   
   return(p)
 }
+

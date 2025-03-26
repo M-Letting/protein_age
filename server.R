@@ -20,8 +20,9 @@ server <- function(input, output) {
     # Create the rolling plot based on user selection
     if (input$binned == "Rolling plot") {
       p1 <- create_incremental_plot(dataset, 
-                                    input$window_size, 
+                                    h = input$window_size, 
                                     genes = GOI, 
+                                    method = input$window_method,
                                     create_plot = TRUE)
       
       # Create the binned plot based on user selection

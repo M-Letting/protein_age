@@ -28,7 +28,10 @@ ui <- fluidPage(
         condition = "input.binned == 'Rolling plot'",
         numericInput("window_size", 
                      "Enter window size for rolling plot", 
-                     value = 5)
+                     value = 5),
+        radioButtons("window_method", 
+                     "Select method for rolling plot", 
+                     choices = c("Mean", "Median", "Sum"))
       ),
       # Conditional options for Hex plot
       conditionalPanel(
