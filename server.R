@@ -5,6 +5,20 @@ server <- function(input, output) {
     req(input$dataset)  # Ensure a dataset is selected
     dataset <- get(input$dataset, envir = .GlobalEnv)  # Fetch dataset
     
+    # Handle peptides dataset separately
+    if (input$dataset == "tmt.PDC000234_peptides") {
+      if (input$binned == "Scatter plot"){
+        # Create a rolling plot for both of the peptides
+        p1 <- create_peptide_scatter()
+      } else if (input$binned == "Rolling plot"){
+        # Create a rolling plot for both of the peptides
+        p1 <- create_peptides_rolling(func = input$window_method)
+      }
+      return(p1)
+    }
+    
+    # ----------- Handle non-peptides datasets below ------------
+    
     # Process Genes of Interest (GOI)
     GOI <- trimws(unlist(strsplit(input$GOI, ",")))  # Split by comma
     

@@ -4,15 +4,21 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       selectInput("dataset", "Select dataset", choices = dataset_names),
-      textInput("GOI", 
-                "Enter Genes of Interest (GOI) as a comma-separated list",
-                placeholder = "Enter GOI here..."),
-      radioButtons("binned", "Select Plot Type", 
-                   choices = c("Binned plot", "Rolling plot", "Hex plot")),
+      
+      # Conditional panel with further options if dataset is not 
+      # "PDC000234 - Peptides (Only H3.1 + H3.3)"
+      conditionalPanel(
+        condition = "input.dataset != 'tmt.PDC000234_peptides'",
+        textInput("GOI", 
+                  "Enter Genes of Interest (GOI) as a comma-separated list",
+                  placeholder = "Enter GOI here..."),
+        radioButtons("binned", "Select Plot Type", 
+                     choices = c("Binned plot", "Rolling plot", "Hex plot"))
+      ),
       
       # Conditional options for Binned plot
       conditionalPanel(
-        condition = "input.binned == 'Binned plot'",
+        condition = "input.binned == 'Binned plot' && input.dataset != 'tmt.PDC000234_peptides'",
         checkboxGroupInput("bin_plot_include", 
                            "What should be included in the plot?",
                            choices = c("Scatter", "Line", "Error Bars", "Point")
@@ -25,7 +31,7 @@ ui <- fluidPage(
       ),
       # Conditional options for Rolling plot
       conditionalPanel(
-        condition = "input.binned == 'Rolling plot'",
+        condition = "input.binned == 'Rolling plot' && input.dataset != 'tmt.PDC000234_peptides'",
         numericInput("window_size", 
                      "Enter window size for rolling plot", 
                      value = 5),
@@ -39,6 +45,18 @@ ui <- fluidPage(
         numericInput("n_bins", 
                      "Enter number of bins for hex plot", 
                      value = 10)
+      ),
+      # Conditional options for PDC000234 - Peptides
+      conditionalPanel(
+        condition = "input.dataset == 'tmt.PDC000234_peptides'",
+        radioButtons("binned", "Select Plot Type", 
+                     choices = c("Rolling plot", "Scatter plot")),
+        conditionalPanel(
+          condition = "input.binned == 'Rolling plot'",
+          radioButtons("window_method", 
+                       "Select method for rolling plot", 
+                       choices = c("Mean", "Median"))
+        ),
       ),
       actionButton("update_btn", "Update Plot", icon = icon("refresh")),
     ),

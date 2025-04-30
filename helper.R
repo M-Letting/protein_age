@@ -172,3 +172,97 @@ create_hex_plot <- function(tmt_df,
   return(p)
 }
 
+# Create a scatter plot PDC000234 H3.3 and H3.1 Peptides
+create_peptide_scatter <- function(){
+  # Create a scatter plot with linear regression lines for each protein
+   p <- ggplot(tmt.PDC000234_peptides, aes(x = Age, y = Log2Ratio, color = Protein)) +
+    geom_point(alpha = 0.5) +
+    labs(title = "Log2 Ratio vs Age for Normal Tissue",
+         x = "Age",
+         y = "Log2 Ratio") +
+    theme(legend.title = element_blank()) +
+    stat_summary_bin(fun = "median", 
+                     geom = "line", 
+                     binwidth = 10) +
+    stat_summary_bin(fun = "median", 
+                     geom = "point", 
+                     binwidth = 10,
+                     size = 1.5) +
+    scale_color_brewer(palette = "Set1")
+  
+  return(p)
+}
+
+# Create a rolling plot for H3.3 and H3.1 Peptides from PDC000234
+create_peptides_rolling <- function(func = "Mean"){
+  # Load the data
+  normal_tissue_long <- tmt.PDC000234_peptides
+  
+  # Create rolling plot (mean of i - h to i + h) with h = 5
+  histone33 <- normal_tissue_long[normal_tissue_long$Protein == "H3.3", ] 
+  histone33 <- histone33[complete.cases(histone33$Log2Ratio), ]
+  histone33 <- histone33[order(histone33$Age), ]
+  
+  histone31 <- normal_tissue_long[normal_tissue_long$Protein == "H3.1", ]
+  histone31 <- histone31[complete.cases(histone31$Log2Ratio), ]
+  histone31 <- histone31[order(histone31$Age), ]
+  
+  # Create an empty dataframe
+  H33_df <- data.frame(matrix(ncol = 2, nrow = nrow(histone33) - 10))
+  colnames(H33_df) <- c("Age", "H3.3")
+  
+  for (i in 6:(nrow(histone33) - 5)) {
+    # Calculate the mean of the Log2Ratio for the current window
+    H33_df$H3.3_mean[i - 5] <- mean(histone33$Log2Ratio[(i - 5):(i + 5)], 
+                                    na.rm = TRUE)
+    H33_df$H3.3_median[i - 5] <- median(histone33$Log2Ratio[(i - 5):(i + 5)], 
+                                        na.rm = TRUE)
+    H33_df$Age[i - 5] <- mean(histone33$Age[(i - 5):(i + 5)], na.rm = TRUE)
+  }
+  
+  # Create an empty dataframe
+  H31_df <- data.frame(matrix(ncol = 2, nrow = nrow(histone31) - 10))
+  colnames(H31_df) <- c("Age", "H3.1")
+  
+  for (i in 6:(nrow(histone31) - 5)) {
+    # Calculate the mean of the Log2Ratio for the current window
+    H31_df$H3.1_mean[i - 5] <- mean(histone31$Log2Ratio[(i - 5):(i + 5)], 
+                                    na.rm = TRUE)
+    H31_df$H3.1_median[i - 5] <- median(histone31$Log2Ratio[(i - 5):(i + 5)], 
+                                        na.rm = TRUE)
+    H31_df$Age[i - 5] <- mean(histone31$Age[(i - 5):(i + 5)], na.rm = TRUE)
+  }
+  
+  # Setting -Inf values to NA
+  H33_df[H33_df == -Inf] <- NA
+  H31_df[H31_df == -Inf] <- NA
+
+  if (func == "Mean"){
+    # Create a scatter plot with linear regression lines for each protein (mean)
+    p <- ggplot() + 
+      geom_point(data = H33_df, aes(x = Age, y = H3.3_mean, color = "H3.3"), 
+                 alpha = 0.5) +
+      geom_point(data = H31_df, aes(x = Age, y = H3.1_mean, color = "H3.1"), 
+                 alpha = 0.5) +
+      labs(title = "Log2 Ratio vs Age for Normal Tissue (Mean)",
+           x = "Age",
+           y = "Log2 Ratio") +
+      theme(legend.title = element_blank()) +
+      scale_color_brewer(palette = "Set1")
+  } else if (func == "Median"){
+    # Create a scatter plot with linear regression lines for each protein (median)
+    p <- ggplot() + 
+      geom_point(data = H33_df, aes(x = Age, y = H3.3_median, color = "H3.3"), 
+                 alpha = 0.5) +
+      geom_point(data = H31_df, aes(x = Age, y = H3.1_median, color = "H3.1"), 
+                 alpha = 0.5) +
+      labs(title = "Log2 Ratio vs Age for Normal Tissue (Median)",
+           x = "Age",
+           y = "Log2 Ratio") +
+      theme(legend.title = element_blank()) +
+      scale_color_brewer(palette = "Set1") 
+  } else {
+    return(NULL)
+  }
+  return(p)
+}
