@@ -2,7 +2,7 @@
 # Functions used in ISA
 ###############################################################################
 
-# Required pachages
+# Required packages
 library(ggplot2)
 library(dplyr)
 library(tidyr)
@@ -38,7 +38,8 @@ create_age_EB_plot <- function(tmt_df, EB_df, genes, alfa = 0.5,
                                scatter = TRUE,
                                line = TRUE, 
                                EB = TRUE,
-                               point = TRUE) {
+                               point = TRUE,
+                               linearReg = TRUE) {
   # Create an empty ggplot object
   p <- ggplot()
   
@@ -80,6 +81,13 @@ create_age_EB_plot <- function(tmt_df, EB_df, genes, alfa = 0.5,
                                                     ymax = Median + SD, 
                                                     color = Gene),
                              width = 2)
+    }
+    if (linearReg == TRUE) {
+      p <- p + geom_smooth(data = tmt_df_gene, aes(x = Age, 
+                                                   y = .data[[gene]], 
+                                                   color = Gene),
+                           method = "lm", 
+                           se = FALSE)
     }
   }
   

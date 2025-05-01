@@ -1,86 +1,84 @@
-#### Define server ####
+#### R Shiny Server Code ####
 server <- function(input, output) {
-  # Reactive expression triggered only when button is clicked
   filtered_plot <- eventReactive(input$update_btn, {
-    req(input$dataset)  # Ensure a dataset is selected
-    dataset <- get(input$dataset, envir = .GlobalEnv)  # Fetch dataset
+    req(input$dataset)
     
-    # Handle peptides dataset separately
-    if (input$dataset == "tmt.PDC000234_peptides") {
-      if (input$binned == "Scatter plot"){
-        # Create a rolling plot for both of the peptides
-        p1 <- create_peptide_scatter()
-      } else if (input$binned == "Rolling plot"){
-        # Create a rolling plot for both of the peptides
-        p1 <- create_peptides_rolling(func = input$window_method)
-      }
-      return(p1)
+    # Combine primary and comparison datasets
+    selected_datasets <- unique(c(input$dataset, input$compare_datasets))
+    if (length(selected_datasets) > 4) {
+      selected_datasets <- selected_datasets[1:4]  # Enforce max of 4
     }
     
-    # ----------- Handle non-peptides datasets below ------------
-    
-    # Process Genes of Interest (GOI)
-    GOI <- trimws(unlist(strsplit(input$GOI, ",")))  # Split by comma
-    
-    # Safe column selection (prevents index errors)
-    selected_columns <- intersect(colnames(dataset), c(GOI, "Age", "AgeBin"))
-    dataset_filtered <- dataset[, selected_columns, drop = FALSE]  
-    
-    # Ensure valid plot selection
-    if (!(input$binned %in% c("Rolling plot", "Binned plot", "Hex plot"))) {
+    # Helper to generate plot for a dataset
+    generate_plot <- function(dataset_name) {
+      dataset <- get(dataset_name, envir = .GlobalEnv)
+      
+      if (dataset_name == "tmt.PDC000234_peptides") {
+        if (input$binned == "Scatter plot") {
+          return(create_peptide_scatter() + ggtitle(paste("Dataset:", dataset_name)))
+        } else if (input$binned == "Rolling plot") {
+          return(create_peptides_rolling(func = input$window_method) + 
+                   ggtitle(paste("Dataset:", dataset_name)))
+        } else {
+          return(NULL)
+        }
+      }
+      
+      GOI <- trimws(unlist(strsplit(input$GOI, ",")))
+      selected_columns <- intersect(colnames(dataset), c(GOI, "Age", "AgeBin"))
+      dataset_filtered <- dataset[, selected_columns, drop = FALSE]
+      
+      if (input$binned == "Rolling plot") {
+        return(create_incremental_plot(dataset,
+                                       h = input$window_size,
+                                       genes = GOI,
+                                       method = input$window_method,
+                                       create_plot = TRUE) + 
+                 ggtitle(paste("Dataset:", dataset_name)))
+      } else if (input$binned == "Binned plot") {
+        EB_df_input <- create_EB_df(dataset_filtered)
+        
+        EB <- "Error Bars" %in% input$bin_plot_include
+        line <- "Line" %in% input$bin_plot_include
+        scatter <- "Scatter" %in% input$bin_plot_include
+        linear_regression <- "Linear Regression" %in% input$bin_plot_include
+        point <- "Point" %in% input$bin_plot_include
+        
+        return(create_age_EB_plot(tmt_df = dataset,
+                                  genes = GOI,
+                                  scatter = scatter,
+                                  linearReg = linear_regression,
+                                  point = point,
+                                  line = line,
+                                  EB = EB,
+                                  EB_df = EB_df_input,
+                                  alfa = input$alpha) + 
+                 ggtitle(paste("Dataset:", dataset_name)))
+      } else if (input$binned == "Hex plot") {
+        if (length(GOI) == 1) {
+          return(create_hex_plot(tmt_df = dataset,
+                                 gene = GOI,
+                                 n_bins = input$n_bins) + 
+                   ggtitle(paste("Dataset:", dataset_name)))
+        } else {
+          return(NULL)
+        }
+      }
       return(NULL)
     }
     
-    # Create the rolling plot based on user selection
-    if (input$binned == "Rolling plot") {
-      p1 <- create_incremental_plot(dataset, 
-                                    h = input$window_size, 
-                                    genes = GOI, 
-                                    method = input$window_method,
-                                    create_plot = TRUE)
-      
-      # Create the binned plot based on user selection
-    } else if (input$binned == "Binned plot") {
-      
-      EB_df_input <- create_EB_df(dataset_filtered)
-      
-      # Check for plot elements
-      EB <- "Error Bars" %in% input$bin_plot_include
-      line <- "Line" %in% input$bin_plot_include
-      scatter <- "Scatter" %in% input$bin_plot_include
-      point <- "Point" %in% input$bin_plot_include
-      
-      p1 <- create_age_EB_plot(
-        tmt_df = dataset, 
-        genes = GOI, 
-        scatter = scatter, 
-        point = point, 
-        line = line, 
-        EB = EB,
-        EB_df = EB_df_input, 
-        alfa = input$alpha
-      )
-      # Plot hex plot
-    } else if (input$binned == "Hex plot") {
-      # Avoid plotting if multiple genes are selected
-      if (length(GOI) == 1) {
-        p1 <- create_hex_plot(tmt_df = dataset, 
-                              gene = GOI,
-                              n_bins = input$n_bins)
-      } else {
-        return(NULL)
-      }
-      # Fallback if no plot is created
-    } else {
-      return(NULL)
-    }
+    # Generate all plots and combine with patchwork
+    plots <- lapply(selected_datasets, generate_plot)
+    plots <- Filter(Negate(is.null), plots)  # Remove NULLs
     
-    return(p1)
+    if (length(plots) == 0) return(NULL)
+    
+    combined_plot <- Reduce(`+`, plots) + patchwork::plot_layout(ncol = 1)
+    return(combined_plot)
   })
   
-  # Render the plot
   output$plot <- renderPlot({
-    req(filtered_plot())  # Ensure reactive plot exists
+    req(filtered_plot())
     filtered_plot()
   })
 }

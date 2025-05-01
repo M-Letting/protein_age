@@ -9,6 +9,7 @@
 # Load the Shiny library and other required libraries
 library(shiny)
 library(ggplot2)
+library(patchwork)
 library(DT)
 
 # Setting working directory as the directory where the app.R file is located

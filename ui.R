@@ -1,12 +1,23 @@
 #### Define UI ####
+ui <- fluidPage
 ui <- fluidPage(
   titlePanel("Protein Expression Across Age"),
   sidebarLayout(
     sidebarPanel(
-      selectInput("dataset", "Select dataset", choices = dataset_names),
+      # Primary dataset
+      selectInput("dataset", "Select primary dataset", choices = dataset_names),
       
-      # Conditional panel with further options if dataset is not 
-      # "PDC000234 - Peptides (Only H3.1 + H3.3)"
+      # Up to 3 additional datasets to compare
+      selectInput(
+        "compare_datasets", 
+        "Select up to 3 datasets to compare with", 
+        choices = dataset_names,
+        selected = NULL,
+        multiple = TRUE
+      ),
+      helpText("You can select up to 3 datasets to compare with the primary dataset."),
+      
+      # Conditional panel with further options if dataset is not peptides
       conditionalPanel(
         condition = "input.dataset != 'tmt.PDC000234_peptides'",
         textInput("GOI", 
@@ -21,15 +32,21 @@ ui <- fluidPage(
         condition = "input.binned == 'Binned plot' && input.dataset != 'tmt.PDC000234_peptides'",
         checkboxGroupInput("bin_plot_include", 
                            "What should be included in the plot?",
-                           choices = c("Scatter", "Line", "Error Bars", "Point")
-        )
+                           choices = c("Scatter",
+                                       "Linear Regression",
+                                       "Line", 
+                                       "Error Bars", 
+                                       "Point"))
       ),
-      conditionalPanel( # Slider for alpha value if scatter plot is selected
+      
+      # Alpha slider if Scatter is selected
+      conditionalPanel(
         condition = "input.binned == 'Binned plot' && input.bin_plot_include.includes('Scatter')",
         sliderInput("alpha", "Select alpha value for scatter plot", 
                     min = 0, max = 1, value = 0.5)
       ),
-      # Conditional options for Rolling plot
+      
+      # Rolling plot options
       conditionalPanel(
         condition = "input.binned == 'Rolling plot' && input.dataset != 'tmt.PDC000234_peptides'",
         numericInput("window_size", 
@@ -39,14 +56,16 @@ ui <- fluidPage(
                      "Select method for rolling plot", 
                      choices = c("Mean", "Median", "Sum"))
       ),
-      # Conditional options for Hex plot
+      
+      # Hex plot options
       conditionalPanel(
         condition = "input.binned == 'Hex plot'",
         numericInput("n_bins", 
                      "Enter number of bins for hex plot", 
                      value = 10)
       ),
-      # Conditional options for PDC000234 - Peptides
+      
+      # Peptides dataset options
       conditionalPanel(
         condition = "input.dataset == 'tmt.PDC000234_peptides'",
         radioButtons("binned", "Select Plot Type", 
@@ -56,12 +75,16 @@ ui <- fluidPage(
           radioButtons("window_method", 
                        "Select method for rolling plot", 
                        choices = c("Mean", "Median"))
-        ),
+        )
       ),
-      actionButton("update_btn", "Update Plot", icon = icon("refresh")),
+      
+      # Action button to update the plot
+      actionButton("update_btn", "Update Plot", icon = icon("refresh"))
     ),
+    
     mainPanel(
-      plotOutput("plot")
+      plotOutput("plot", height = "1000px")  # Allow height for multiple plots
     )
   )
 )
+
